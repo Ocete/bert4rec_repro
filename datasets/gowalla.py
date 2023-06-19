@@ -1,6 +1,7 @@
 import datetime
 import time
 import dateutil.parser
+import os
 
 from aprec.datasets.dataset_utils import gunzip
 from aprec.datasets.download_file import download_file
@@ -8,7 +9,7 @@ from aprec.api.action import Action
 
 
 GOWALLA_DATASET_URL='https://snap.stanford.edu/data/loc-gowalla_totalCheckins.txt.gz'
-DIR="data/gowalla"
+DIR=os.path.join("data",  "gowalla")
 GOWALLA_GZIPPED="gowalla.txt.gz"
 
 def prepare_data():

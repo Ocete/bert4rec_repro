@@ -22,7 +22,7 @@ from aprec.api.action import Action
 
 DATASET_LINK = "https://archive.org/download/nf_prize_dataset.tar/nf_prize_dataset.tar.gz"
 DATASET_FILE = "nf_prize_dataset.tar.gz"
-DIR="data/netflix"
+DIR=os.path.join("data",  "netflix")
 
 def download_netflix_dataset():
     print("downloading netflix dataset...")

@@ -501,7 +501,11 @@ def main(_):
 
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
 
-    tf.io.gfile.makedirs(FLAGS.checkpointDir)
+    # tf.io.gfile.makedirs diesn't correctly work on windows with tensorflow 2.6,
+    # creating dir manually instead.
+    #tf.io.gfile.makedirs(FLAGS.checkpointDir)
+    os.mkdir(FLAGS.checkpointDir)
+    
 
     train_input_files = []
     for input_pattern in FLAGS.train_input_file.split(","):
@@ -531,7 +535,11 @@ def main(_):
     
     if FLAGS.vocab_filename is not None:
         with open(FLAGS.vocab_filename, 'rb') as input_file:
+            # If this path is not manually added, the aprec module can't
+            # be found and pickle won't load correctly.
+            sys.path.append('E:\\TFM\\aprec_repro')
             vocab = pickle.load(input_file)
+
     item_size = len(vocab.counter)
 
     model_fn = model_fn_builder(

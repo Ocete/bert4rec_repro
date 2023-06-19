@@ -10,7 +10,7 @@ from aprec.utils.item_id import ItemId
 from aprec.utils.os_utils import get_dir, shell
 
 
-YELP_DIR = "data/yelp"
+YELP_DIR = os.path.join("data",  "yelp")
 YELP_RAW_FILE = "yelp_dataset.tar"
 YELP_URL = "https://www.yelp.com/dataset"
 YELP_REVIEWS_FILE = "yelp_academic_dataset_review.json"

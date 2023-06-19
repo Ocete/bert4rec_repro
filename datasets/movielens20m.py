@@ -9,7 +9,7 @@ from aprec.datasets.download_file import download_file
 
 DATASET_NAME = 'ml-20m'
 MOVIELENS_URL = "http://files.grouplens.org/datasets/movielens/{}.zip".format(DATASET_NAME)
-MOVIELENS_DIR = "data/movielens20m"
+MOVIELENS_DIR = os.path.join("data",  "movielens20m")
 MOVIELENS_FILE = "movielens.zip"
 MOVIELENS_FILE_ABSPATH = os.path.join(get_dir(), MOVIELENS_DIR, MOVIELENS_FILE)
 MOVIELENS_DIR_ABSPATH = os.path.join(get_dir(), MOVIELENS_DIR)
@@ -51,7 +51,7 @@ def get_movielens20m_actions(min_rating=4.0):
 def get_movies_catalog():
     prepare_data()
     catalog = Catalog()
-    with open(MOVIES_FILE, 'r') as data_file:
+    with open(MOVIES_FILE, 'r', encoding="utf8") as data_file:
         header = True
         for line in data_file:
             if header:

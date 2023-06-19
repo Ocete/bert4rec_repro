@@ -2,6 +2,7 @@ import datetime
 from datetime import timezone
 import calendar
 import pandas as pd
+import os
 
 
 from aprec.api.user import User
@@ -9,7 +10,7 @@ from aprec.api.item import Item
 from aprec.api.action import Action
 from aprec.datasets.download_file import download_file
 
-MTS_KION_DIR = "data/mts_kion"
+MTS_KION_DIR = os.path.join("data", "mts_kion")
 
 MTS_KION_INTERACTIONS_URL = "https://storage.yandexcloud.net/datasouls-ods/materials/04adaecc/interactions.csv"
 MTS_KION_INTERACTIONS_FILE = "interactions.csv"

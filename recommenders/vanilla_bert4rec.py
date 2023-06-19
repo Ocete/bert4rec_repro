@@ -4,8 +4,8 @@ import json
 import os
 import pickle
 import random
-import shlex
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from aprec.recommenders.BERT4rec.gen_data_fin import create_training_instances, write_instance_to_example_file
@@ -13,6 +13,7 @@ from aprec.recommenders.BERT4rec.vocab import FreqVocab
 from aprec.recommenders.recommender import Recommender
 from aprec.recommenders import BERT4rec
 from aprec.utils.item_id import ItemId
+from aprec.utils.os_utils import split_cmd, split_path
 
 
 class VanillaBERT4Rec(Recommender):
@@ -109,6 +110,7 @@ class VanillaBERT4Rec(Recommender):
 
 
         with tempfile.TemporaryDirectory() as tmpdir:
+
             train_instances_filename = os.path.join(tmpdir, "train_instances.tfrecords")
             train_instances_file = open(train_instances_filename, "wb")
 
@@ -122,7 +124,6 @@ class VanillaBERT4Rec(Recommender):
 
             bert_config_filename = os.path.join(tmpdir, "bert_config_file.json")
             bert_config_file = open(bert_config_filename, "wb")
-
             vocab_filename = os.path.join(tmpdir, "vocab.pickle")
             vocab_file = open(vocab_filename, "wb")
 
@@ -146,6 +147,13 @@ class VanillaBERT4Rec(Recommender):
             bert_config_file.flush()
             pickle.dump(vocab, vocab_file, protocol=2)
             pickle.dump(user_test_data_output, history_file, protocol=2)
+
+            train_instances_file.close()
+            pred_instances_file.close()
+            bert_config_file.close()
+            vocab_file.close()
+            history_file.close()
+
             self.train_and_predict(train_instances_filename,
                                    pred_instances_filename,
                                    vocab_filename,
@@ -170,10 +178,10 @@ class VanillaBERT4Rec(Recommender):
                           sampled_instances_filename,
                           sampled_predictions_file,
                           tmpdir):
-
+        
         bert4rec_dir = os.path.dirname(BERT4rec.__file__)
         bert4rec_runner = os.path.join(bert4rec_dir, "run.py")
-        signature = tmpdir.split("/")[-1]
+        signature = split_path(tmpdir)[-1]
         cmd = f"python {bert4rec_runner}\
             --train_input_file={train_instances_filename} \
             --test_input_file={pred_instances_filename} \
@@ -197,7 +205,7 @@ class VanillaBERT4Rec(Recommender):
         if self.training_time_limit is not None:
             cmd += f" --training_time_limit={self.training_time_limit}"
 
-        subprocess.check_call(shlex.split(cmd))
+        subprocess.check_call(split_cmd(cmd))
         self.predictions_cache = self.read_predictions_cache(predictions_filename)
         self.sampled_items_ranking_predictions_cache = self.read_predictions_cache(sampled_predictions_file)
         pass
@@ -250,5 +258,3 @@ class VanillaBERT4Rec(Recommender):
                 user_result.append((external_item_id, score))
             result[request.user_id] = user_result
         return result
-
-

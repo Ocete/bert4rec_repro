@@ -9,7 +9,7 @@ import logging
 import os
 
 
-BOOKING_DIR = "data/booking"
+BOOKING_DIR = os.path.join("data",  "booking")
 BOOKING_TRAIN_URL = "https://raw.githubusercontent.com/bookingcom/ml-dataset-mdt/main/train_set.csv"
 BOOKING_TEST_URL = "https://raw.githubusercontent.com/bookingcom/ml-dataset-mdt/main/test_set.csv"
 BOOKING_TRAIN_FILE = "booking_train_set.csv"

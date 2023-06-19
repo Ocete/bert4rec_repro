@@ -7,7 +7,7 @@ from aprec.datasets.download_file import download_file
 
 DATASET_NAME = 'ml-100k'
 MOVIELENS_URL = "http://files.grouplens.org/datasets/movielens/{}.zip".format(DATASET_NAME)
-MOVIELENS_DIR = "data/movielens100k"
+MOVIELENS_DIR = os.path.join("data",  "movielens100k")
 MOVIELENS_FILE = "movielens.zip"
 MOVIELENS_FILE_ABSPATH = os.path.join(get_dir(), MOVIELENS_DIR, MOVIELENS_FILE)
 MOVIELENS_DIR_ABSPATH = os.path.join(get_dir(), MOVIELENS_DIR)

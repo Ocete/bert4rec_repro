@@ -15,7 +15,7 @@ from aprec.datasets.dataset_utils import filter_cold_users
 from aprec.utils.os_utils import mkdir_p_local
 
 class DatasetsRegister(object):
-    DATA_DIR = "data/cache"
+    DATA_DIR = os.path.join("data",  "cache")
 
     _all_datasets =  {
         "BERT4rec.ml-1m": lambda: get_bert4rec_dataset("ml-1m"),

@@ -1,8 +1,10 @@
+import os
+
 from aprec.api.action import Action
 from aprec.datasets.download_file import download_file
 
 BERT4REC_DATASET_URL="https://raw.githubusercontent.com/asash/BERT4rec_py3_tf2/master/BERT4rec/data/{}.txt"
-BERT4REC_DIR = "data/bert4rec"
+BERT4REC_DIR = os.path.join("data",  "bert4rec")
 VALID_DATASETS={"beauty", "ml-1m", "steam"}
 
 def get_bert4rec_dataset(dataset):
