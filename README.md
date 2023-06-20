@@ -1,6 +1,6 @@
 ## Important note for setup
 
-The original repo from which this is forked can be found at [https://github.com/asash/bert4rec_repro]. The following instructions are complementary to the ones in that repository, and adapt the setup for both Windows and Linux systems.
+The original repo from which this is forked can be found at https://github.com/asash/bert4rec_repro. The following instructions are complementary to the ones in that repository, and adapt the setup for both Windows and Linux systems.
 
 ## Installation
 
@@ -65,12 +65,12 @@ where `requirements.txt` is [this requirements file](https://github.com/Ocete/TF
 
 ### 6. Clone necessary github repos into workdir:
 
-This is step 6 of [https://github.com/asash/bert4rec_repro], but cloning this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/Ocete/bert4rec_repro/blob/6fde3e82b0922ef83952a7df6925cdbcb7b6f64a/utils/os_utils.py#L9), right after the setup was compleated and before any other changes were made.
+This is step 6 of https://github.com/asash/bert4rec_repro, but cloning this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/Ocete/bert4rec_repro/blob/6fde3e82b0922ef83952a7df6925cdbcb7b6f64a/utils/os_utils.py#L9), right after the setup was compleated and before any other changes were made.
 
 
 ### 7. Download Yelp Dataset if needed
  
-Check step 8 in [https://github.com/asash/bert4rec_repro].
+Check step 8 in https://github.com/asash/bert4rec_repro.
 
 ### 8. If on Linux, manually change OS setting.
 
