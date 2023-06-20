@@ -4,7 +4,8 @@ import shlex
 import logging
 import hashlib
 
-# Change this to use these functions with its  behaviour, meant for Linux.
+# Change this to use these functions with its original behaviour,
+# meant for Linux.
 os_Windows = True
 path_separator = '\\' if os_Windows else '/'
 
