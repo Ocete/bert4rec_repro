@@ -1,80 +1,83 @@
 ## Important note for setup
 
-The original repo from which this is forked can be found at [https://github.com/asash/bert4rec_repro]. The following instructions are complementary to the ones in that repository, and adapt the setup for both Windows and Linux systems.
+The original repo from which this is forked can be found at https://github.com/asash/bert4rec_repro. The following instructions are complementary to the ones in that repository, and adapt the setup for both Windows and Linux systems.
 
 ## Installation
 
 The instructions has been tested on a Windows 10 machine with an NVIDIA GeForce GTX 1060 6GB.
 
-Please follow these step-by-step instructions to reproduce our results.
+To complete the installation, follow each step of these instructions. If there is a step missing (for instance, like steps 1 and 2), follow the missing steps from the [original repo](https://github.com/asash/bert4rec_repro) instead.
 
+### 3. Create an anaconda environment with necessary package versions:
 
-### 1. Install Python 3.9.12 in your system.
-
-Install this version of Python on your system and find it's exact path if it's not your default Python.
-
-
-### 2. Create the project working directory
-```
-mkdir aprec_repro
-cd aprec_repro
-```
-
-
-### 3. Create a python enviroment with the selected python version.
+Install each package version following the official [tensorflow dependency matrix](https://www.tensorflow.org/install/source#tested_build_configurations) instead of the ones from the original repo.
 
 ```
-python -m venv ".venv"              
+conda create -y -c pytorch -c conda-forge --name aprec_repro python=3.9.12 cudnn=8.1 cudatoolkit=11.2
+conda install gh=2.1.0 
 ```
 
-This will create a hidden folder `.venv` and a virtual enviroment inside of it. If Python3.9.12 isn't your default python version, run the following command instead:
+Note: Installing `expect` like in the original repo is only necessary for Linux machines.
+
+Activate the conda enviroment now in order to install packages with pip inside the enviroment. You might need to run `conda init` or `conda init powershell` first:
 
 ```
-<path to you python version> -m venv ".venv"              
+conda activate aprec_repro
 ```
 
-### 4. Activate your enviroment and make sure the correct python version is active.
-
-Activate the enviroment (on Windows) by using either
+Instead of installing tensorflow or pytorch via conda (like `conda install tensorflow-gpu=2.6.2`) use pip, once the conda enviroment has been activated.
 
 ```
-.venv/Script/activate.bat
+pip install tensorflow==2.6.0
 ```
 
-or
+Torch may be also installed using pip, but it's already on the requirements list, so it will be installed in step 6.
+
+### 4. Add working working directory to the PYTHONPATH of the anaconda environment:
+
+Instead of running:
 
 ```
-.venv/Script/Activate.ps1
+conda env config vars set -n aprec_repro PYTHONPATH=`pwd`
 ```
 
-Make sure the correct version of python is being used by running `pythohn --version` and seeing `3.9.12`.
-
-### 5. Install requirements
-
-First, upgrade pip:
+You will need to add the path to the new `python.exe` executable (inside the conda directory) manually, and use `'` instead of ` ` `. In order to easily find where the python executable is, you can run (once the conda enviroment is active):
 
 ```
-pip install --upgrade pip
+python
+> import sys
+> sys.path
 ```
+
+In my case the exact path was `D:\anaconda3\envs\aprec_repro\python.exe` so I ran:
+
+```
+conda env config vars set -n aprec_repro PYTHONPATH='D:\anaconda3\envs\aprec_repro\python.exe'
+```
+
+### 5. Install python packages in the environment
+
+Our conda enviroment should be already active :)
+
+### 6. Install python packages in the environment
+
+Use this [requirements file](https://github.com/Ocete/TFM/blob/main/aprec_repro/requirements.txt) and run:
 
 ```
 pip install -r requirements.txt
 ```
 
-where `requirements.txt` is [this requirements file](https://github.com/Ocete/TFM/blob/main/aprec_repro/requirements.txt).
+This will install not only the necessary packages, but the exact old versions compatible with each other.
 
-### 6. Clone necessary github repos into workdir:
+### 7. Clone necessary github repos into workdir:
 
-This is step 6 of [https://github.com/asash/bert4rec_repro], but cloning this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/Ocete/bert4rec_repro/blob/6fde3e82b0922ef83952a7df6925cdbcb7b6f64a/utils/os_utils.py#L9), right after the setup was compleated and before any other changes were made.
+Follow the other instructions but clone this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/Ocete/bert4rec_repro/blob/6fde3e82b0922ef83952a7df6925cdbcb7b6f64a/utils/os_utils.py#L9), right after the setup was compleated and before any other changes were made.
 
-
-### 7. Download Yelp Dataset if needed
- 
-Check step 8 in [https://github.com/asash/bert4rec_repro].
-
-### 8. If on Linux, manually change OS setting.
+#### 7.3 Code adaptation 
 
 If you are working on Linux instead of Ubuntu, manually change the OS setting in `aprec/utils/os_utils.py` ([here](https://github.com/Ocete/bert4rec_repro/blob/20a1c9d8d98e60b59fe383ba318eae8a4b8f57b7/utils/os_utils.py#L8)) to `False`.
+
+In that same file, change the variable `python_exec_path` to your `python.exe` (the same path used in step 4 but with double backslash).
 
 ### 9. Test the code
 
@@ -88,5 +91,5 @@ pytest --verbose --forked .
 If the preivous command doesn't work for running tests (due to Windows incompatibilites with subprocesses), run the following instead:
 
 ```
-pytest -n auto --verbose . 
+pytest --verbose -n auto . 
 ```

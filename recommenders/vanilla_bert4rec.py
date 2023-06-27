@@ -13,7 +13,7 @@ from aprec.recommenders.BERT4rec.vocab import FreqVocab
 from aprec.recommenders.recommender import Recommender
 from aprec.recommenders import BERT4rec
 from aprec.utils.item_id import ItemId
-from aprec.utils.os_utils import split_cmd, split_path
+from aprec.utils.os_utils import prepare_cmd_call, split_path
 
 
 class VanillaBERT4Rec(Recommender):
@@ -205,7 +205,7 @@ class VanillaBERT4Rec(Recommender):
         if self.training_time_limit is not None:
             cmd += f" --training_time_limit={self.training_time_limit}"
 
-        subprocess.check_call(split_cmd(cmd))
+        subprocess.check_call(prepare_cmd_call(cmd))
         self.predictions_cache = self.read_predictions_cache(predictions_filename)
         self.sampled_items_ranking_predictions_cache = self.read_predictions_cache(sampled_predictions_file)
         pass

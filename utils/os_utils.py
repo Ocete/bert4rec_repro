@@ -8,10 +8,20 @@ import hashlib
 # meant for Linux.
 os_Windows = True
 path_separator = '\\' if os_Windows else '/'
+python_exec_path = 'D:\\anaconda3\\envs\\aprec_repro\\python.exe'
 
-def split_cmd(cmd):
+def prepare_cmd_call(cmd):
     cmd_splitted = cmd.split(' ') if os_Windows else shlex.split(cmd)
-    return [ word for word in cmd_splitted if word != '' ]
+    cmd_splitted = [ word for word in cmd_splitted if word != '' ]
+    if os_Windows and cmd_splitted[0] == 'unzip':
+        cmd_splitted = ["tar", "-xvf", cmd_splitted[2], "-C", cmd_splitted[4]]
+    if os_Windows and cmd_splitted[0] == 'mv':
+        cmd_splitted[0] = 'move'
+    if os_Windows and cmd_splitted[0] == 'rm':
+        cmd_splitted[0] = 'del'
+    if os_Windows and cmd_splitted[0] == 'python':
+        cmd_splitted[0] = python_exec_path
+    return cmd_splitted
 
 def split_path(path):
     return path.split(path_separator)
@@ -34,13 +44,7 @@ def recursive_listdir(dir_name):
     
 def shell(cmd):
     logging.info("running shell command: \n {}".format(cmd))
-    cmd_splitted = split_cmd(cmd)
-    if os_Windows and cmd_splitted[0] == 'unzip':
-        cmd_splitted = ["tar", "-xvf", cmd_splitted[2], "-C", cmd_splitted[4]]
-    if os_Windows and cmd_splitted[0] == 'mv':
-        cmd_splitted[0] = 'move'
-    if os_Windows and cmd_splitted[0] == 'rm':
-        cmd_splitted[0] = 'del'
+    cmd_splitted = prepare_cmd_call(cmd)
     subprocess.check_call(cmd_splitted)
 
 def mkdir_p(dir_path):
