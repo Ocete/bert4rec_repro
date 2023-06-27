@@ -71,7 +71,7 @@ This will install not only the necessary packages, but the exact old versions co
 
 ### 7. Clone necessary github repos into workdir:
 
-Follow the other instructions but clone this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/Ocete/bert4rec_repro/blob/6fde3e82b0922ef83952a7df6925cdbcb7b6f64a/utils/os_utils.py#L9), right after the setup was compleated and before any other changes were made.
+Follow the other instructions but clone this updated repo instead of their version in step 7.1. To obtain an even cleaner version, clone [this exact commit](https://github.com/asash/bert4rec_repro/commit/3f2959da7f4d230cd7e4a734ffbd42e912aa0618), right after the setup was compleated and before any other changes were made.
 
 #### 7.3 Code adaptation 
 
