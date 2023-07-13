@@ -13,7 +13,7 @@ def download_file(url, filename, data_dir):
         with open(full_filename, 'wb') as out_file:
             out_file.write(response.content)
         logging.info(f"{filename} dataset downloaded")
-        full_name = get_dir()
+        full_filename = get_dir()
     else:
         logging.info(f"booking {filename} file already exists, skipping")
     return full_filename

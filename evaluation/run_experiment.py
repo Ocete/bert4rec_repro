@@ -36,7 +36,6 @@ def real_hash(obj):
 
 def run_experiment(config):
     result = []
-    print(f"Dataset: {config.DATASET}")
     print("reading  data...")
     all_actions = [action for action in DatasetsRegister()[config.DATASET]()]
     print("done")
@@ -135,8 +134,13 @@ def write_result(config, result):
 
 
 if __name__ == "__main__":
+    print('Start!')
     physical_devices = tf.config.list_physical_devices('GPU') 
+    print('Phisical devices ready')
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    print('Ready for config')
     config = config()
+    print('Config done, ready for experiment')
     run_experiment(config)
-    
+    print('Experiment done')
+

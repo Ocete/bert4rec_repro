@@ -128,7 +128,7 @@ class DataGenerator(Sequence):
         target_inputs, target = self.targets_builder.get_targets(start, end)
         model_inputs += target_inputs
 
-        return model_inputs, target 
+        return model_inputs, target
 
     def __next__(self):
         if self.current_position >= self.max:

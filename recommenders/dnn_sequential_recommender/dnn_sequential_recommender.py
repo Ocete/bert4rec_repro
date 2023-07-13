@@ -167,6 +167,7 @@ class DNNSequentialRecommender(Recommender):
                                       shuffle_data=True
                                       )
             print(f"epoch: {epoch}")
+
             val_metric = self.train_epoch(generator, val_generator)
 
             total_trainig_time = time.time() - start_time

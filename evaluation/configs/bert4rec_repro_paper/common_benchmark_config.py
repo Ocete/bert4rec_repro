@@ -1,9 +1,11 @@
 from aprec.evaluation.samplers.pop_sampler import PopTargetItemsSampler
 from aprec.losses.bce import BCELoss
+from aprec.losses.bceDreji import BCELossDreji
 from aprec.losses.mean_ypred_ploss import MeanPredLoss
 from aprec.recommenders.dnn_sequential_recommender.history_vectorizers.add_mask_history_vectorizer import AddMaskHistoryVectorizer
 from aprec.recommenders.dnn_sequential_recommender.models.bert4rec.bert4rec import BERT4Rec
 from aprec.recommenders.dnn_sequential_recommender.models.sasrec.sasrec import SASRec
+from aprec.recommenders.dnn_sequential_recommender.models.sasrecDreji.sasrecDreji import SASRecDreji
 from aprec.recommenders.dnn_sequential_recommender.target_builders.full_matrix_targets_builder import FullMatrixTargetsBuilder
 from aprec.recommenders.dnn_sequential_recommender.target_builders.items_masking_target_builder import ItemsMaskingTargetsBuilder
 from aprec.recommenders.dnn_sequential_recommender.target_builders.negative_per_positive_target import NegativePerPositiveTargetBuilder
@@ -18,7 +20,6 @@ from aprec.recommenders.bert4recrepro.recbole_bert4rec import RecboleBERT4RecRec
 from aprec.recommenders.bert4recrepro.b4vae_bert4rec import B4rVaeBert4Rec
 from aprec.recommenders.lightfm import LightFMRecommender
 from aprec.recommenders.vanilla_bert4rec import VanillaBERT4Rec
-
 
 
 from aprec.evaluation.metrics.ndcg import NDCG
@@ -49,12 +50,12 @@ def dnn(model_arch, loss, sequence_splitter,
                  target_builder=FullMatrixTargetsBuilder,
                 optimizer=Adam(),
                 training_time_limit=3600, metric=KerasNDCG(40), 
-                max_epochs=10000
+                max_epochs=10000, early_stop_epochs=100
                 ):
     return DNNSequentialRecommender(train_epochs=max_epochs, loss=loss,
                                                           model_arch=model_arch,
                                                           optimizer=optimizer,
-                                                          early_stop_epochs=100,
+                                                          early_stop_epochs=early_stop_epochs,
                                                           batch_size=128,
                                                           training_time_limit=training_time_limit,
                                                           sequence_splitter=sequence_splitter, 
@@ -103,7 +104,25 @@ vanilla_sasrec  = lambda: dnn(
             target_builder=lambda: NegativePerPositiveTargetBuilder(HISTORY_LEN), 
             metric=BCELoss(),
             )
-    
+
+def dreji_sasrec(HISTORY_LEN=50):
+    sasrec_arc = SASRecDreji(
+        max_history_len=HISTORY_LEN, 
+        dropout_rate=0.2,
+        num_heads=1,
+        num_blocks=2,
+        vanilla=True, 
+        embedding_size=50,
+    )
+    return dnn(
+        sasrec_arc,
+        BCELossDreji(model_arc=sasrec_arc),
+        ShiftedSequenceSplitter,
+        optimizer=Adam(beta_2=0.98),
+        target_builder=lambda: NegativePerPositiveTargetBuilder(HISTORY_LEN), 
+        metric=BCELossDreji(model_arc=sasrec_arc),
+    )
+
 
 HISTORY_LEN=50
 

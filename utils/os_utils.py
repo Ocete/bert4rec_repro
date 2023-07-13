@@ -19,7 +19,7 @@ def prepare_cmd_call(cmd):
         cmd_splitted[0] = 'move'
     if os_Windows and cmd_splitted[0] == 'rm':
         cmd_splitted[0] = 'del'
-    if os_Windows and cmd_splitted[0] == 'python':
+    if os_Windows and (cmd_splitted[0] == 'python' or cmd_splitted[0] == 'python3'):
         cmd_splitted[0] = python_exec_path
     return cmd_splitted
 

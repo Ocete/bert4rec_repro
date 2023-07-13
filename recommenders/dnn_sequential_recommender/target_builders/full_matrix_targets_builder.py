@@ -4,7 +4,7 @@ from aprec.recommenders.dnn_sequential_recommender.target_builders.target_builde
 
 
 class FullMatrixTargetsBuilder(TargetBuilder):
-    def __init__(self, max_target_label=1.0, target_decay=1.0, min_target_val=0.1):
+    def __init__(self, max_target_label=1.0, target_decay=1.0, min_target_val=0.1, single_target=False):
         self.max_target_label = max_target_label
         self.target_decay = target_decay
         self.min_target_val = min_target_val

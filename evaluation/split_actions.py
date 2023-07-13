@@ -48,7 +48,13 @@ def get_single_action_users(users):
     return result
 
 class LeaveOneOut(ActionsSplitter):
-    def __init__(self, max_test_users=4096, random_seed = 31337, remove_single_action=True, recently_interacted_hours = None):
+    def __init__(
+            self,
+            max_test_users=4096,
+            random_seed = 31337,
+            remove_single_action=True,
+            recently_interacted_hours = None
+        ):
         self.max_test_users=max_test_users
         self.random_seed = random_seed
         self.remove_single_actions =remove_single_action
