@@ -18,12 +18,14 @@ class SASRecDreji(SequentialRecsysModel):
                  dropout_rate=0.2,
                  num_blocks=3,
                  num_heads=1,
-                 reuse_item_embeddings=True, #use same item embeddings for
-                                             # sequence embedding and for the embedding matrix
-                 encode_output_embeddings=False, #encode item embeddings with a dense layer
-                                                          #may be useful if we reuse item embeddings
-                 vanilla=False, #vanilla sasrec model uses shifted sequence prediction at the training time. 
-                 sampled_targets=None,
+                 reuse_item_embeddings=True,        # use same item embeddings for
+                                                    # sequence embedding and for the embedding matrix
+                 encode_output_embeddings=False,    #encode item embeddings with a dense layer
+                                                    # may be useful if we reuse item embeddings
+                 vanilla=False, #vanilla sasrec model uses shifted sequence prediction at the training time,
+                                # used with NegativePerPositiveTargetBuilder.
+                 sampled_target=None, # Used with FullMatrixTargetBuilder or SampledTargetMatrixBuilder.
+                 negative_sampling=None, # Used with NegativeSamplingTargetBuilder.
                  ):
         super().__init__(output_layer_activation, embedding_size, max_history_len)
         self.dropout_rate = dropout_rate
@@ -31,8 +33,9 @@ class SASRecDreji(SequentialRecsysModel):
         self.num_heads = num_heads
         self.reuse_item_embeddings=reuse_item_embeddings
         self.encode_output_embeddings = encode_output_embeddings
-        self.sampled_targets = sampled_targets
+        self.sampled_target = sampled_target
         self.vanilla = vanilla
+        self.negative_sampling = negative_sampling
         self.latest_model = None
 
 
@@ -40,17 +43,18 @@ class SASRecDreji(SequentialRecsysModel):
 
     def get_model(self):
         model = OwnSasrecModelDreji(
-            self.num_items,
-            self.batch_size,
-            self.output_layer_activation,
-            self.embedding_size,
-            self.max_history_length,
-            self.dropout_rate,
-            self.num_blocks,
-            self.num_heads,
-            self.reuse_item_embeddings,
-            self.encode_output_embeddings,
-            self.sampled_targets, 
+            num_items=self.num_items,
+            batch_size=self.batch_size,
+            output_layer_activation=self.output_layer_activation,
+            embedding_size=self.embedding_size,
+            max_history_length=self.max_history_length,
+            dropout_rate=self.dropout_rate,
+            num_blocks=self.num_blocks,
+            num_heads=self.num_heads,
+            reuse_item_embeddings=self.reuse_item_embeddings,
+            encode_output_embeddings=self.encode_output_embeddings,
+            sampled_target=self.sampled_target,
+            negative_sampling=self.negative_sampling,
             vanilla=self.vanilla
         )
         self.latest_model = model
@@ -64,8 +68,8 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
                  reuse_item_embeddings=False,
                  encode_output_embeddings=False,
                  sampled_target=None,
-                 vanilla = False, #vanilla implementation; 
-                                  #at the training time we calculate one positive and one negative per sequence element
+                 negative_sampling=None,
+                 vanilla = False, #vanilla implementation; uses negative sampling and shifted sequence prediction
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         assert(not (vanilla and sampled_target), "only vanilla or sampled targetd strategy can be used at once")
@@ -78,6 +82,7 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         self.num_items = num_items
         self.batch_size = batch_size
         self.sampled_target = sampled_target
+        self.negative_sampling = negative_sampling
         self.reuse_item_embeddings=reuse_item_embeddings
         self.encode_output_embeddings = encode_output_embeddings
         self.vanilla = vanilla
@@ -150,9 +155,15 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         elif self.sampled_target:
             seq_emb = seq_emb[:, -1, :]
             output = tf.einsum("ij,ikj ->ik", seq_emb, target_embeddings)
+        elif self.negative_sampling:
+            seq_emb = tf.expand_dims(seq_emb, axis=-2)
+            # Dimension i=1 (we just expanded in the previous line), so we squeeze it
+            # in the same operation. Equivalent to "...ij,...kj ->...ik" followed by
+            # squeeze.
+            output = tf.einsum("...ij,...kj ->...k", seq_emb, target_embeddings)
         else:
-            seq_emb = seq_emb[:, -1, :]
-            output = seq_emb @ tf.transpose(target_embeddings)
+            seq_emb = tf.einsum("...ij,...kj ->...ik", seq_emb, target_embeddings)
+
         output = self.output_activation(output)
         return output
     
@@ -186,9 +197,11 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
             seq = self.block(seq, mask, i)
         seq_emb = self.seq_norm(seq)
         return seq_emb
-    
+
     def get_target_ids(self, x):
-        if self.vanilla or (self.sampled_target is not None):
+        if self.vanilla \
+                or (self.sampled_target is not None) \
+                or (self.negative_sampling is not None):
             target_ids = x[1]
         else:
             target_ids = self.all_items
@@ -231,40 +244,19 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         data = data_adapter.expand_1d(data)
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
         target_ids = self.get_target_ids(x)
-        '''
-        tf.print('x[0]')
-        tf.print(tf.shape(x[0]))
-        tf.print(x[0])
-        tf.print('x[1]')
-        tf.print(tf.shape(x[1]))
-        tf.print(x[1])
-        '''
-        tf.print('x')
-        tf.print(tf.shape(x))
-        tf.print(x)
-        tf.print('y sum')
-        tf.print(tf.math.reduce_sum(y), summarize=-1)
-        tf.print('y')
-        tf.print(tf.shape(y))
-        tf.print(y, summarize=-1)
-        tf.print(tf.shape(y))
         y_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y)
+
         # Run forward pass.
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            tf.print('y_pred')
-            tf.print(tf.shape(y_pred))
-            tf.print(y_pred)
             y_pred_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y_pred)
-
-            '''
             loss = self.compiled_loss(
                 y_indexed, y_pred_indexed, sample_weight, regularization_losses=self.losses)
         # Run backwards pass.
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         self.compiled_metrics.update_state(y_indexed, y_pred_indexed, sample_weight)
+
         # Collect metrics to return
-        '''
         return_metrics = {}
         for metric in self.metrics:
             result = metric.result()

@@ -67,8 +67,6 @@ def run_experiment(config):
         else:
             items=None
 
-
-
         if hasattr(config, 'RECOMMENDATIONS_LIMIT'):
             recommendations_limit = config.RECOMMENDATIONS_LIMIT
         else:

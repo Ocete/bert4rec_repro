@@ -11,7 +11,7 @@ class DataGenerator(Sequence):
                  n_items, 
                  history_vectorizer,
                  batch_size=1000,
-                 return_drect_positions=False, return_reverse_positions=False,
+                 return_direct_positions=False, return_reverse_positions=False,
                  user_id_required=False,
                  max_user_features=0,
                  user_features_required=False, 
@@ -25,7 +25,7 @@ class DataGenerator(Sequence):
         self.n_items = n_items
         self.batch_size = batch_size
         self.sequences_matrix = None
-        self.return_direct_positions = return_drect_positions
+        self.return_direct_positions = return_direct_positions
         self.return_reverse_positions = return_reverse_positions
         self.user_id_required = user_id_required
         self.user_features = user_features

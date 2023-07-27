@@ -19,13 +19,12 @@ class BCELossDreji(Loss):
         self.model_arc = kwargs['model_arc']
         self.model = None
 
+        # alpha is the loss coefficient that ponders the expected similarity.
         if 'alpha' not in kwargs:
             kwargs['alpha'] = 1
         self.alpha = kwargs['alpha']
 
     def __call__(self, y_true_raw_indexed, y_pred_indexed):
-
-        return 1
         '''
             Example call for this loss:
                 x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
@@ -42,38 +41,35 @@ class BCELossDreji(Loss):
         similarities = self.compute_similarities(item_indexes, y_true_raw)
         
         # y_true contains 1 if the position is the objective item and 0 if it isn't. It contains -1
-        # if the data is invalid. is_target is a masked true where y_true is either 0 or 1.
+        # if the data is invalid. is_target is a boolean mask, 1 only where y_true is either 0 or 1.
         y_true = tf.cast(y_true_raw, 'float32')
         is_target = tf.cast((y_true >= -self.eps), 'float32')
-
-        # pos = -tf.math.log(tf.sigmoid(y_pred) + self.eps) * is_target
         pos = -tf.math.log(tf.sigmoid(y_pred * similarities) + self.eps) * is_target
+
         num_targets = tf.reduce_sum(is_target)
         ce_sum = tf.reduce_sum(pos)
         res_sum = tf.math.divide_no_nan(ce_sum, num_targets)
 
-        sim_sum = tf.math.reduce_sum(similarities * is_target)
-        sim_mean = tf.math.divide_no_nan(sim_sum, num_targets)
-        return res_sum + sim_mean
+        similarity_sum = tf.math.reduce_sum(similarities * is_target)
+        similarity_mean = tf.math.divide_no_nan(similarity_sum, num_targets)
+
+        tf.print('Loss res: ', res_sum)
+        tf.print('Loss sim: ', similarity_mean)
+        return res_sum + self.alpha * similarity_mean
     
 
     def slice_input(self, tensor):
         """
-            tensor: A tensor with shape [..., 2], where tensor[..., 0] being the x's and
+            tensor: A tensor with shape (?, ?, ?, 2), where tensor[..., 0] being the x's and
             tensor[..., 1], the y's.
 
             Returns:
-                A tuple of shape [...] (same shape as input without the last dimension), where
+                A tuple of shape (?, ?, ?) (same shape as input without the last dimension), where
                 the first element is tensor[..., 0] and the second, tensor[..., 1] (x and y respectively).
         """
-        shape = tf.shape(tensor)[:-1]
-        slicing_offset_x = tf.zeros(tf.size(shape) + 1, dtype=tf.int32)
-        slicing_offset_y = tf.concat([tf.zeros(tf.size(shape), dtype=tf.int32), tf.constant([1])], axis=0)
-        slicing_size = tf.concat([tf.repeat(-1, tf.size(shape)), tf.constant([1])], axis=0)
-        
-        x = tf.reshape(tf.slice(tensor, begin=slicing_offset_x, size=slicing_size), shape) 
-        y = tf.reshape(tf.slice(tensor, begin=slicing_offset_y, size=slicing_size), shape)
-        return tf.cast(x, tf.int32), y
+        x = tf.cast(tensor[:, :, :, 0], tf.int32)
+        y = tensor[:, :, :, 1]
+        return x, y
     
 
 
@@ -103,8 +99,8 @@ class BCELossDreji(Loss):
         objective_shape = tf.shape(item_indexes)
         objective_shape = tf.tensor_scatter_nd_update(objective_shape, [[2]], [1])
 
-        # Objetive items contains only the index of the target to compared (where y_true is 1).
-        # Comparative items contains the indexes of all the other items (where y_true is 0).
+        # Objetive items contains only the index of the target to compare against (where y_true is 1).
+        # Comparative items contains all the indexes of all the other items (where y_true is 0 or 1).
         objective_items = tf.reshape(tf.boolean_mask(item_indexes, y_true_updated), objective_shape)
         comparative_items =  item_indexes 
 
@@ -114,7 +110,8 @@ class BCELossDreji(Loss):
         objectives_embeddings, _ = tf.linalg.normalize(objectives_embeddings, axis=-1)
         comparative_embeddings, _ = tf.linalg.normalize(comparative_embeddings, axis=-1)
 
-        similarities = tf.linalg.matmul(objectives_embeddings, comparative_embeddings, transpose_b=True)
-        similarities = tf.squeeze(similarities, axis=2)
+        # Dimension i=1 (we set it that way by manually creating the objective_shape), so this operation
+        # is equivalente to "...ij,...kj->...ik" and tf.squeeze afterwards.
+        similarities = tf.einsum("...ij,...kj->...k", objectives_embeddings, comparative_embeddings)
         return similarities
 
