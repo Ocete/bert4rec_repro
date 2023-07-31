@@ -38,7 +38,8 @@ do
     echo "experiment_stderr: ${experiment_stderr}"
     #echo "experiment_commit: ${experiment_commit}"
     #git log -1 > $experiment_commit
-	/mnt/d/anaconda3/envs/aprec_repro/python.exe run_experiment.py $config $experiment_result > $experiment_stdout 2> $experiment_stderr;
+	#/mnt/d/anaconda3/envs/aprec_repro/python.exe run_experiment.py $config $experiment_result > $experiment_stdout 2> $experiment_stderr;
+	/mnt/c/users/jose/anaconda3/envs/aprec_repro/python.exe run_experiment.py $config $experiment_result > $experiment_stdout 2> $experiment_stderr;
 done;
 
 echo "Finished!";

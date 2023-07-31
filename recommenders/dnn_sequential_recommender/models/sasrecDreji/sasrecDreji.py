@@ -26,6 +26,7 @@ class SASRecDreji(SequentialRecsysModel):
                                 # used with NegativePerPositiveTargetBuilder.
                  sampled_target=None, # Used with FullMatrixTargetBuilder or SampledTargetMatrixBuilder.
                  negative_sampling=None, # Used with NegativeSamplingTargetBuilder.
+                 use_indexed_y = False,
                  ):
         super().__init__(output_layer_activation, embedding_size, max_history_len)
         self.dropout_rate = dropout_rate
@@ -37,6 +38,7 @@ class SASRecDreji(SequentialRecsysModel):
         self.vanilla = vanilla
         self.negative_sampling = negative_sampling
         self.latest_model = None
+        self.use_indexed_y = use_indexed_y
 
 
     encode_embedding_with_dense_layer = False,
@@ -207,7 +209,17 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
             target_ids = self.all_items
         return target_ids
 
+    def set_config(self, new_config):
+        self.vanilla = new_config["vanilla"]
+        self.sampled_target = new_config["sampled_target"]
+        self.negative_sampling = new_config["negative_sampling"]
+        self.use_indexed_y = new_config["use_indexed_y"]
 
+    def prepare_y_for_loss(self, x, y):
+        if self.use_indexed_y:
+            target_ids = self.get_target_ids(x)
+            y = stack_indexes_with_predictions(indexes=target_ids, predictions=y)
+        return y
 
 # This method is a copy of the original keras.model.train_step method found at
 # https://github.com/keras-team/keras/blob/3a33d53ea4aca312c5ad650b4883d9bac608a32e/keras/engine/training.py#L755
@@ -243,18 +255,17 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         # data when a `tf.data.Dataset` is provided.
         data = data_adapter.expand_1d(data)
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-        target_ids = self.get_target_ids(x)
-        y_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y)
-
+        y = self.prepare_y_for_loss(x, y)
+        
         # Run forward pass.
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            y_pred_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y_pred)
+            y_pred = self.prepare_y_for_loss(x, y_pred)
             loss = self.compiled_loss(
-                y_indexed, y_pred_indexed, sample_weight, regularization_losses=self.losses)
+                y, y_pred, sample_weight, regularization_losses=self.losses)
         # Run backwards pass.
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        self.compiled_metrics.update_state(y_indexed, y_pred_indexed, sample_weight)
+        self.compiled_metrics.update_state(y, y_pred, sample_weight)
 
         # Collect metrics to return
         return_metrics = {}
@@ -295,15 +306,15 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         """
         data = data_adapter.expand_1d(data)
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-        target_ids = self.get_target_ids(x)
         y_pred = self(x, training=False)
-
-        y_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y)
-        y_pred_indexed = stack_indexes_with_predictions(indexes=target_ids, predictions=y_pred)
+        
+        y = self.prepare_y_for_loss(x, y)
+        y_pred = self.prepare_y_for_loss(x, y_pred)
+        
         # Updates stateful loss metrics.
         self.compiled_loss(
-            y_indexed, y_pred_indexed, sample_weight, regularization_losses=self.losses)
-        self.compiled_metrics.update_state(y_indexed, y_pred_indexed, sample_weight)
+            y, y_pred, sample_weight, regularization_losses=self.losses)
+        self.compiled_metrics.update_state(y, y_pred, sample_weight)
         # Collect metrics to return
         return_metrics = {}
         for metric in self.metrics:

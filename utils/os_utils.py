@@ -8,7 +8,8 @@ import hashlib
 # meant for Linux.
 os_Windows = True
 path_separator = '\\' if os_Windows else '/'
-python_exec_path = 'D:\\anaconda3\\envs\\aprec_repro\\python.exe'
+#python_exec_path = 'D:\\anaconda3\\envs\\aprec_repro\\python.exe'
+python_exec_path = 'C:\\Users\\Jose\\anaconda3\\envs\\aprec_repro\\python.exe'
 
 def prepare_cmd_call(cmd):
     cmd_splitted = cmd.split(' ') if os_Windows else shlex.split(cmd)

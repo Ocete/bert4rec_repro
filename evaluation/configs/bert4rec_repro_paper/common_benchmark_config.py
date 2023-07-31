@@ -45,25 +45,40 @@ def lightfm_recommender(k, loss):
     return LightFMRecommender(k, loss, num_threads=32)
 
 
-def dnn(model_arch, loss, sequence_splitter, 
-                val_sequence_splitter=SequenceContinuation, 
-                 target_builder=FullMatrixTargetsBuilder,
-                optimizer=Adam(),
-                training_time_limit=3600, metric=KerasNDCG(40), 
-                max_epochs=10000, early_stop_epochs=100
-                ):
-    return DNNSequentialRecommender(train_epochs=max_epochs, loss=loss,
-                                                          model_arch=model_arch,
-                                                          optimizer=optimizer,
-                                                          early_stop_epochs=early_stop_epochs,
-                                                          batch_size=128,
-                                                          training_time_limit=training_time_limit,
-                                                          sequence_splitter=sequence_splitter, 
-                                                          targets_builder=target_builder, 
-                                                          val_sequence_splitter = val_sequence_splitter,
-                                                          metric=metric,
-                                                          debug=False
-                                                          )
+def dnn(
+        model_arch, loss, sequence_splitter, 
+        val_sequence_splitter=SequenceContinuation, 
+        target_builder=FullMatrixTargetsBuilder,
+        optimizer=Adam(),
+        training_time_limit=3600, metric=KerasNDCG(40), 
+        max_epochs=10000, early_stop_epochs=100,
+        second_step_training=False,
+        second_step_loss=BCELoss(),
+        second_step_metric=BCELoss(),
+        second_step_targets_builder=FullMatrixTargetsBuilder,
+        first_step_config=None,
+        second_step_config=None,
+    ):
+    return DNNSequentialRecommender(
+        train_epochs=max_epochs,
+        loss=loss,
+        model_arch=model_arch,
+        optimizer=optimizer,
+        early_stop_epochs=early_stop_epochs,
+        batch_size=128,
+        training_time_limit=training_time_limit,
+        sequence_splitter=sequence_splitter, 
+        targets_builder=target_builder, 
+        val_sequence_splitter = val_sequence_splitter,
+        metric=metric,
+        debug=False,
+        second_step_training=second_step_training,
+        second_step_loss=second_step_loss,
+        second_step_metric=second_step_metric,
+        second_step_targets_builder=second_step_targets_builder,
+        first_step_config=first_step_config,
+        second_step_config=second_step_config,
+    )
 
 def original_ber4rec():
     recommender = VanillaBERT4Rec()

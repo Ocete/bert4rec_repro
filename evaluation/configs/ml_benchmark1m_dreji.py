@@ -23,11 +23,11 @@ def dreji_sasrec_vanilla(HISTORY_LEN=50):
         embedding_size=50,
     )
     return dnn(
-        sasrec_arc,
-        BCELossDreji(model_arc=sasrec_arc),
-        ShiftedSequenceSplitter,
+        model_arch=sasrec_arc,
+        loss=BCELossDreji(model_arc=sasrec_arc),
+        sequence_splitter=ShiftedSequenceSplitter,
         optimizer=Adam(beta_2=0.98),
-        target_builder= lambda: NegativePerPositiveTargetBuilder(),
+        target_builder= lambda: NegativePerPositiveTargetBuilder(HISTORY_LEN),
         metric=BCELossDreji(model_arc=sasrec_arc),
     )
 
@@ -56,11 +56,59 @@ def dreji_sasrec(
         BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
         ShiftedSequenceSplitter,
         optimizer=Adam(beta_2=0.98),
-        target_builder= lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
+        target_builder=lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
         metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
         training_time_limit=training_time_limit,
         early_stop_epochs=early_stop_epochs,
     )
+    
+def dreji_sasrec_two_steps_training(
+        HISTORY_LEN=50,
+        n_samples=101,
+        alpha=7.5,
+        training_time_limit=TRAINING_TIME_LIMIT,
+        early_stop_epochs=10,
+    ):
+    sasrec_arc = SASRecDreji(
+        max_history_len=HISTORY_LEN, 
+        dropout_rate=0.2,
+        num_heads=1,
+        num_blocks=2,
+        vanilla=False,
+        sampled_target=False,
+        negative_sampling=True,
+        embedding_size=50,
+    )
+    
+    first_step_config = {
+        "vanilla": True,
+        "sampled_target": False,
+        "negative_sampling": False,
+        "use_indexed_y": False
+    }
+    second_step_config = {
+        "vanilla": False,
+        "sampled_target": False,
+        "negative_sampling": True,
+        "use_indexed_y": True
+    }
+    return dnn(
+        sasrec_arc,
+        BCELoss(),
+        ShiftedSequenceSplitter,
+        optimizer=Adam(beta_2=0.98),
+        target_builder=lambda: NegativePerPositiveTargetBuilder(HISTORY_LEN),
+        metric=BCELoss(),
+        training_time_limit=training_time_limit,
+        early_stop_epochs=early_stop_epochs,
+        second_step_training=True,
+        second_step_loss=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
+        second_step_metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
+        second_step_targets_builder=lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
+        first_step_config = first_step_config,
+        second_step_config = second_step_config,
+    )
+
 
 DATASET = "BERT4rec.ml-1m"
 USERS_FRACTIONS = [1]
@@ -76,5 +124,6 @@ RECOMMENDERS = {
     #"top_recommender": top_recommender,
     #"MF-BPR": lambda: lightfm_recommender(30, 'bpr'),
     #"dreji_sasrec_vanilla": dreji_sasrec_vanilla,
-    "dreji_sasrec": dreji_sasrec,
+    #"dreji_sasrec": dreji_sasrec,
+    "dreji_sasrec_two_steps_training": dreji_sasrec_two_steps_training
 }

@@ -2,7 +2,6 @@ import gc
 import random
 import time
 
-import tensorflow.keras.backend as K
 from collections import defaultdict
 import tensorflow as tf
 
@@ -28,19 +27,32 @@ import numpy as np
 
 
 class DNNSequentialRecommender(Recommender):
-    def __init__(self, model_arch: SequentialRecsysModel, loss: Loss = BCELoss(),
-                 users_featurizer=None,
-                 items_featurizer=None,
-                 train_epochs=300, optimizer=Adam(),
-                 sequence_splitter:TargetSplitter = RandomFractionSplitter, 
-                 val_sequence_splitter:TargetSplitter = SequenceContinuation,
-                 targets_builder = FullMatrixTargetsBuilder,
-                 batch_size=1000, early_stop_epochs=100, target_decay=1.0,
-                 training_time_limit=None, debug=False,
-                 metric = KerasNDCG(40), 
-                 train_history_vectorizer:HistoryVectorizer = DefaultHistoryVectrizer(), 
-                 pred_history_vectorizer:HistoryVectorizer = DefaultHistoryVectrizer(),
-                 ):
+    def __init__(
+            self,
+            model_arch: SequentialRecsysModel,
+            loss: Loss = BCELoss(),
+            users_featurizer=None,
+            items_featurizer=None,
+            train_epochs=300,
+            optimizer=Adam(),
+            sequence_splitter:TargetSplitter = RandomFractionSplitter, 
+            val_sequence_splitter:TargetSplitter = SequenceContinuation,
+            targets_builder = FullMatrixTargetsBuilder,
+            batch_size=1000,
+            early_stop_epochs=100,
+            target_decay=1.0,
+            training_time_limit=None,
+            debug=False,
+            metric = KerasNDCG(40),
+            train_history_vectorizer: HistoryVectorizer = DefaultHistoryVectrizer(), 
+            pred_history_vectorizer: HistoryVectorizer = DefaultHistoryVectrizer(),
+            second_step_training = False,
+            second_step_loss: Loss = BCELoss(),
+            second_step_metric = KerasNDCG(40),
+            second_step_targets_builder=FullMatrixTargetsBuilder,
+            first_step_config=None,
+            second_step_config=None,
+        ):
         super().__init__()
         self.model_arch = model_arch
         self.users = ItemId()
@@ -73,6 +85,15 @@ class DNNSequentialRecommender(Recommender):
         self.val_sequence_splitter = val_sequence_splitter
         self.train_history_vectorizer = train_history_vectorizer
         self.pred_history_vectorizer = pred_history_vectorizer
+        
+        # For some models, a training in two steps is performed, each with a different
+        # loss, metric, target_splitter and configuration.
+        self.second_step_training = second_step_training
+        self.second_step_loss = second_step_loss
+        self.second_step_metric = second_step_metric
+        self.second_step_targets_builder = second_step_targets_builder
+        self.first_step_config = first_step_config
+        self.second_step_config = second_step_config
 
     def add_user(self, user):
         if self.users_featurizer is None:
@@ -121,25 +142,64 @@ class DNNSequentialRecommender(Recommender):
 
     def rebuild_model(self):
         self.sort_actions()
-        self.pass_parameters()
         self.max_user_features, self.max_user_feature_val = self.get_max_user_features()
         train_users, train_user_ids, train_features, val_users, val_user_ids, val_features = self.train_val_split()
-
         print("train_users: {}, val_users:{}, items:{}".format(len(train_users), len(val_users), self.items.size()))
-        val_generator = DataGenerator(val_users, val_user_ids, val_features, self.model_arch.max_history_length,
-                                      self.items.size(),
-                                      self.train_history_vectorizer,
-                                      batch_size=self.batch_size,
-                                      sequence_splitter=self.val_sequence_splitter, 
-                                      user_id_required=self.model_arch.requires_user_id,
-                                      max_user_features=self.max_user_features,
-                                      user_features_required=not (self.users_featurizer is None), 
-                                      targets_builder=self.targets_builder,
-                                      shuffle_data=False
-                                      )
-
+        
+        self.total_training_time = 0
+        self.training_loop(
+            train_users=train_users,
+            train_user_ids=train_user_ids,
+            train_features=train_features,
+            val_users=val_users,
+            val_user_ids=val_user_ids,
+            val_features=val_features,
+            loss=self.loss,
+            metric=self.metric,
+            targets_builder=self.targets_builder,
+            model_config=self.first_step_config
+        )
+        
+        if self.second_step_training: 
+            print('--- Second step training')
+            self.training_loop(
+                train_users=train_users,
+                train_user_ids=train_user_ids,
+                train_features=train_features,
+                val_users=val_users,
+                val_user_ids=val_user_ids,
+                val_features=val_features,
+                loss=self.second_step_loss,
+                metric=self.second_step_metric,
+                targets_builder=self.second_step_targets_builder,
+                model_config=self.second_step_config
+            )
+        
+        
+    def training_loop(
+            self,
+            train_users, train_user_ids, train_features,
+            val_users, val_user_ids, val_features,
+            loss, metric, targets_builder, model_config=None
+        ):
+        self.pass_parameters(loss)
+        val_generator = DataGenerator(
+            val_users, val_user_ids, val_features, self.model_arch.max_history_length,
+            self.items.size(),
+            self.train_history_vectorizer,
+            batch_size=self.batch_size,
+            sequence_splitter=self.val_sequence_splitter, 
+            user_id_required=self.model_arch.requires_user_id,
+            max_user_features=self.max_user_features,
+            user_features_required=not (self.users_featurizer is None), 
+            targets_builder=targets_builder,
+            shuffle_data=False,
+        )
         self.model = self.get_model(val_generator)
-        if self.metric.less_is_better:
+        if model_config is not None:
+            self.model.set_config(model_config)
+        
+        if metric.less_is_better:
             best_metric_val = float('inf')
         else:
             best_metric_val = float('-inf')
@@ -148,10 +208,10 @@ class DNNSequentialRecommender(Recommender):
         best_epoch = -1
         best_weights = self.model.get_weights()
         val_metric_history = []
-        start_time = time.time()
+        start_time = time.time() - self.total_training_time
 
         if not self.debug:
-            self.model.compile(optimizer=self.optimizer, loss=self.loss, metrics=[self.metric])
+            self.model.compile(optimizer=self.optimizer, loss=loss, metrics=[metric])
 
         for epoch in range(self.train_epochs):
             val_generator.reset()
@@ -163,53 +223,53 @@ class DNNSequentialRecommender(Recommender):
                                       sequence_splitter=self.sequence_splitter,
                                       max_user_features=self.max_user_features,
                                       user_features_required=not (self.users_featurizer is None), 
-                                      targets_builder=self.targets_builder, 
+                                      targets_builder=targets_builder, 
                                       shuffle_data=True
                                       )
             print(f"epoch: {epoch}")
 
-            val_metric = self.train_epoch(generator, val_generator)
+            val_metric = self.train_epoch(generator, val_generator, metric_name=metric.__name__)
 
-            total_trainig_time = time.time() - start_time
-            val_metric_history.append((total_trainig_time, val_metric))
+            self.total_training_time = time.time() - start_time
+            val_metric_history.append((self.total_training_time, val_metric))
 
             steps_since_improved += 1
-            if (self.metric.less_is_better and val_metric < best_metric_val) or\
-                        (not self.metric.less_is_better and val_metric > best_metric_val):
+            if (metric.less_is_better and val_metric < best_metric_val) or\
+                        (not metric.less_is_better and val_metric > best_metric_val):
                 steps_since_improved = 0
                 best_metric_val = val_metric
                 best_epoch = epoch
                 best_weights = self.model.get_weights()
-            print(f"val_{self.metric.__name__}: {val_metric:.5f}, best_{self.metric.__name__}: {best_metric_val:.5f}, steps_since_improved: {steps_since_improved},"
-                  f" total_training_time: {total_trainig_time}")
+            print(f"val_{metric.__name__}: {val_metric:.5f}, best_{metric.__name__}: {best_metric_val:.5f}, steps_since_improved: {steps_since_improved},"
+                  f" total_training_time: {self.total_training_time}")
             if steps_since_improved >= self.early_stop_epochs:
                 print(f"early stopped at epoch {epoch}")
                 break
 
-            if self.training_time_limit is not None and total_trainig_time > self.training_time_limit:
+            if self.training_time_limit is not None and self.total_training_time > self.training_time_limit:
                 print(f"time limit stop triggered at epoch {epoch}")
                 break
 
-            K.clear_session()
+            tf.keras.backend.clear_session()
             gc.collect()
         self.model.set_weights(best_weights)
-        self.metadata = {"epochs_trained": best_epoch + 1, f"best_val_{self.metric.__name__}": best_metric_val,
-                         f"val_{self.metric.__name__}_history": val_metric_history}
+        self.metadata = {"epochs_trained": best_epoch + 1, f"best_val_{metric.__name__}": best_metric_val,
+                         f"val_{metric.__name__}_history": val_metric_history}
         print(self.get_metadata())
-        print(f"taken best model from epoch{best_epoch}. best_val_{self.metric.__name__}: {best_metric_val}")
+        print(f"taken best model from epoch{best_epoch}. best_val_{metric.__name__}: {best_metric_val}")
 
-    def pass_parameters(self):
-        self.loss.set_num_items(self.items.size())
-        self.loss.set_batch_size(self.batch_size)
+    def pass_parameters(self, loss):
+        loss.set_num_items(self.items.size())
+        loss.set_batch_size(self.batch_size)
         self.train_history_vectorizer.set_sequence_len(self.model_arch.max_history_length)
         self.train_history_vectorizer.set_padding_value(self.items.size())
         self.pred_history_vectorizer.set_sequence_len(self.model_arch.max_history_length)
         self.pred_history_vectorizer.set_padding_value(self.items.size())
         
 
-    def train_epoch(self, generator, val_generator):
+    def train_epoch(self, generator, val_generator, metric_name):
         if not self.debug:
-            return self.train_epoch_prod(generator, val_generator)
+            return self.train_epoch_prod(generator, val_generator, metric_name=metric_name)
         else:
             return self.train_epoch_debug(generator, val_generator)
 
@@ -246,9 +306,9 @@ class DNNSequentialRecommender(Recommender):
         val_metric = val_metric_sum / num_batches
         return float(val_metric)
 
-    def train_epoch_prod(self, generator, val_generator):
+    def train_epoch_prod(self, generator, val_generator, metric_name):
         train_history = self.model.fit(generator, validation_data=val_generator)
-        return train_history.history[f"val_{self.metric.__name__}"][-1]
+        return train_history.history[f"val_{metric_name}"][-1]
 
     def train_val_split(self):
         all_user_ids = self.users_with_actions
