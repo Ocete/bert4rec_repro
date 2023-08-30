@@ -20,7 +20,7 @@ class SASRecDreji(SequentialRecsysModel):
                  num_heads=1,
                  reuse_item_embeddings=True,        # use same item embeddings for
                                                     # sequence embedding and for the embedding matrix
-                 encode_output_embeddings=False,    #encode item embeddings with a dense layer
+                 encode_output_embeddings=False,    # encode item embeddings with a dense layer
                                                     # may be useful if we reuse item embeddings
                  vanilla=False, #vanilla sasrec model uses shifted sequence prediction at the training time,
                                 # used with NegativePerPositiveTargetBuilder.
@@ -67,7 +67,7 @@ class SASRecDreji(SequentialRecsysModel):
 class OwnSasrecModelDreji(tensorflow.keras.Model):
     def __init__(self, num_items, batch_size, output_layer_activation='linear', embedding_size=64,
                  max_history_length=64, dropout_rate=0.5, num_blocks=2, num_heads=1,
-                 reuse_item_embeddings=False,
+                 reuse_item_embeddings=True,
                  encode_output_embeddings=False,
                  sampled_target=None,
                  negative_sampling=None,
@@ -214,6 +214,10 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         self.sampled_target = new_config["sampled_target"]
         self.negative_sampling = new_config["negative_sampling"]
         self.use_indexed_y = new_config["use_indexed_y"]
+        self.item_embeddings_layer.trainable = not new_config["freeze_item_embeddings"]
+        if not self.reuse_item_embeddings:
+            self.output_item_embeddings.trainable = not new_config["freeze_item_embeddings"]
+
 
     def prepare_y_for_loss(self, x, y):
         if self.use_indexed_y:

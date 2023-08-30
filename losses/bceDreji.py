@@ -8,6 +8,12 @@ import aprec.recommenders.dnn_sequential_recommender.models.sasrecDreji.sasrecDr
 
 
 class BCELossDreji(Loss):
+    '''
+        Instead of computing the regular BCE(y, y_pred) = KL(y || y_pred), we compare the values
+        to the similarities: SimBCE(y, y_pred) = KL(y || sim(y_pred)). Note that we have to normalize
+        the similarities `sim(y_pred)` so they are a probability distribution for the KL to make
+        sense.
+    '''
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.__name__ = "BCEDreji"
@@ -40,6 +46,9 @@ class BCELossDreji(Loss):
 
         similarities = self.compute_similarities(item_indexes, y_true_raw)
         
+        tf.print('y_pred min max: ', tf.math.reduce_min(y_pred), tf.math.reduce_max(y_pred))
+        tf.print('similarities min max: ', tf.math.reduce_min(similarities), tf.math.reduce_max(similarities))
+        
         # y_true contains 1 if the position is the objective item and 0 if it isn't. It contains -1
         # if the data is invalid. is_target is a boolean mask, 1 only where y_true is either 0 or 1.
         y_true = tf.cast(y_true_raw, 'float32')
@@ -50,12 +59,10 @@ class BCELossDreji(Loss):
         ce_sum = tf.reduce_sum(pos)
         res_sum = tf.math.divide_no_nan(ce_sum, num_targets)
 
-        similarity_sum = tf.math.reduce_sum(similarities * is_target)
-        similarity_mean = tf.math.divide_no_nan(similarity_sum, num_targets)
+        # similarity_sum = tf.math.reduce_sum(similarities * is_target)
+        # similarity_mean = tf.math.divide_no_nan(similarity_sum, num_targets)
 
-        tf.print('Loss res: ', res_sum)
-        tf.print('Loss sim: ', similarity_mean)
-        return res_sum + self.alpha * similarity_mean
+        return res_sum + self.alpha # * similarity_mean
     
 
     def slice_input(self, tensor):
@@ -113,5 +120,11 @@ class BCELossDreji(Loss):
         # Dimension i=1 (we set it that way by manually creating the objective_shape), so this operation
         # is equivalente to "...ij,...kj->...ik" and tf.squeeze afterwards.
         similarities = tf.einsum("...ij,...kj->...k", objectives_embeddings, comparative_embeddings)
+        
+        # Normalize similarities from [-1, 1] to [0, 1].
+        similarities = (similarities + 1) / 2
+        
+        # Normalize similarities so they are a probability distribution, needed for the BCE.
+        similarities, _ = tf.linalg.normalize(similarities, ord=1, axis=0)
         return similarities
 

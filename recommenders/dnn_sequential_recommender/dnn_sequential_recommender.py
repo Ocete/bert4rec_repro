@@ -46,7 +46,6 @@ class DNNSequentialRecommender(Recommender):
             metric = KerasNDCG(40),
             train_history_vectorizer: HistoryVectorizer = DefaultHistoryVectrizer(), 
             pred_history_vectorizer: HistoryVectorizer = DefaultHistoryVectrizer(),
-            second_step_training = False,
             second_step_loss: Loss = BCELoss(),
             second_step_metric = KerasNDCG(40),
             second_step_targets_builder=FullMatrixTargetsBuilder,
@@ -88,7 +87,6 @@ class DNNSequentialRecommender(Recommender):
         
         # For some models, a training in two steps is performed, each with a different
         # loss, metric, target_splitter and configuration.
-        self.second_step_training = second_step_training
         self.second_step_loss = second_step_loss
         self.second_step_metric = second_step_metric
         self.second_step_targets_builder = second_step_targets_builder
@@ -160,7 +158,7 @@ class DNNSequentialRecommender(Recommender):
             model_config=self.first_step_config
         )
         
-        if self.second_step_training: 
+        if self.second_step_config is not None: 
             print('--- Second step training')
             self.training_loop(
                 train_users=train_users,

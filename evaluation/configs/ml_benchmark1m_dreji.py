@@ -3,6 +3,7 @@ from aprec.evaluation.configs.bert4rec_repro_paper.common_benchmark_config impor
 from aprec.recommenders.dnn_sequential_recommender.target_builders.negative_sampling_target_builder import NegativeSamplingTargetBuilder
 from aprec.recommenders.dnn_sequential_recommender.target_builders.negative_per_positive_target import NegativePerPositiveTargetBuilder
 
+from collections import defaultdict
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 
@@ -61,7 +62,7 @@ def dreji_sasrec(
         training_time_limit=training_time_limit,
         early_stop_epochs=early_stop_epochs,
     )
-    
+
 def dreji_sasrec_two_steps_training(
         HISTORY_LEN=50,
         n_samples=101,
@@ -70,6 +71,8 @@ def dreji_sasrec_two_steps_training(
         early_stop_epochs=10,
     ):
     sasrec_arc = SASRecDreji(
+        #output_layer_activation='tanh', # Make the model's output in [-1,1]
+        output_layer_activation='softmax', # Make the model's output in [0,1]
         max_history_len=HISTORY_LEN, 
         dropout_rate=0.2,
         num_heads=1,
@@ -80,18 +83,15 @@ def dreji_sasrec_two_steps_training(
         embedding_size=50,
     )
     
-    first_step_config = {
+    first_step_config = defaultdict(bool, {
         "vanilla": True,
-        "sampled_target": False,
-        "negative_sampling": False,
-        "use_indexed_y": False
-    }
-    second_step_config = {
-        "vanilla": False,
-        "sampled_target": False,
+    })
+    second_step_config =  defaultdict(bool, {
         "negative_sampling": True,
-        "use_indexed_y": True
-    }
+        "use_indexed_y": True,
+        "freeze_item_embeddings": True,
+    })
+    
     return dnn(
         sasrec_arc,
         BCELoss(),
@@ -101,7 +101,6 @@ def dreji_sasrec_two_steps_training(
         metric=BCELoss(),
         training_time_limit=training_time_limit,
         early_stop_epochs=early_stop_epochs,
-        second_step_training=True,
         second_step_loss=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
         second_step_metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
         second_step_targets_builder=lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
