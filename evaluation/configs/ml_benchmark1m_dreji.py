@@ -94,6 +94,7 @@ def dreji_sasrec_two_steps_training(
         sasrec_arc,
         BCELoss(),
         ShiftedSequenceSplitter,
+        max_epochs=30,
         optimizer=Adam(beta_2=0.98),
         target_builder=lambda: NegativePerPositiveTargetBuilder(HISTORY_LEN),
         metric=BCELoss(),
@@ -102,7 +103,7 @@ def dreji_sasrec_two_steps_training(
         second_step_loss=BCELossDreji(model_arc=sasrec_arc, alpha=alpha, use_rmse=True),
         second_step_metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha, use_rmse=True),
         second_step_targets_builder=lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
-        second_step_optimizer=Adam(beta_2=0.98, learning_rate=0.00001),
+        #second_step_optimizer=Adam(beta_2=0.98, learning_rate=0.01),
         first_step_config = first_step_config,
         second_step_config = second_step_config,
     )

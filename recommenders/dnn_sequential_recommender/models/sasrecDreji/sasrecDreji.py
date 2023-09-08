@@ -264,8 +264,6 @@ class OwnSasrecModelDreji(tensorflow.keras.Model):
         # Run forward pass.
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
-            tf.print('y_pred min max: ', tf.math.reduce_min(y_pred), tf.math.reduce_max(y_pred))
-
             y_pred = self.prepare_y_for_loss(x, y_pred)
             loss = self.compiled_loss(
                 y, y_pred, sample_weight, regularization_losses=self.losses)

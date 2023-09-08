@@ -53,10 +53,14 @@ class BCELossDreji(Loss):
 
         if self.use_rmse:
             similarities = self.compute_similarities(item_indexes, y_true_raw, in_0_1=True)
-            loss_value = tf.math.squared_difference(tf.sigmoid(y_pred), similarities) * is_target
+            loss_value = tf.math.squared_difference(tf.nn.softmax(y_pred, axis=-1), similarities) * is_target
         else:
+            """
             similarities = self.compute_similarities(item_indexes, y_true_raw, in_0_1=False)
             loss_value = -tf.math.log(tf.sigmoid(y_pred * similarities) + self.eps) * is_target
+            """
+            similarities = self.compute_similarities(item_indexes, y_true_raw, in_0_1=True)
+            loss_value = - similarities * tf.math.log(tf.nn.softmax(y_pred, axis=-1) + self.eps) * is_target
 
         ce_sum = tf.reduce_sum(loss_value)
         res_sum = tf.math.divide_no_nan(ce_sum, num_targets)
@@ -64,9 +68,6 @@ class BCELossDreji(Loss):
         # similarity_sum = tf.math.reduce_sum(similarities * is_target)
         # similarity_mean = tf.math.divide_no_nan(similarity_sum, num_targets)
 
-        tf.print('y_pred min max: ', tf.math.reduce_min(y_pred), tf.math.reduce_max(y_pred))
-        tf.print('similarities min max: ', tf.math.reduce_min(similarities), tf.math.reduce_max(similarities))
-        
         return res_sum # + self.alpha * similarity_mean
     
 
@@ -129,7 +130,8 @@ class BCELossDreji(Loss):
         
         # Normalize similarities from [-1, 1] to [0, 1].
         if in_0_1:
-            similarities = (similarities + 1) / 2
+            similarities = tf.nn.softmax(similarities, axis=-1)
+            # similarities = (similarities + 1) / 2
         
         # Normalize similarities so they are a probability distribution, needed for the BCE.
         similarities, _ = tf.linalg.normalize(similarities, ord=1, axis=0)
