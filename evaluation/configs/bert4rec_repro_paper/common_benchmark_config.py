@@ -55,6 +55,7 @@ def dnn(
         second_step_loss=BCELoss(),
         second_step_metric=BCELoss(),
         second_step_targets_builder=FullMatrixTargetsBuilder,
+        second_step_optimizer=Adam(),
         first_step_config=None,
         second_step_config=None,
     ):
@@ -74,6 +75,7 @@ def dnn(
         second_step_loss=second_step_loss,
         second_step_metric=second_step_metric,
         second_step_targets_builder=second_step_targets_builder,
+        second_step_optimizer=second_step_optimizer,
         first_step_config=first_step_config,
         second_step_config=second_step_config,
     )

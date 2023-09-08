@@ -4,3 +4,5 @@ data
 evaluation/results/*
 *__pycache__/
 *.ipynb_checkpoints/
+utils/os_utils.py
+evaluation/run_n_experiments.sh

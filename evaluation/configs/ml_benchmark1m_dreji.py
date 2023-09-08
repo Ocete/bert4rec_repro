@@ -68,18 +68,16 @@ def dreji_sasrec_two_steps_training(
         n_samples=101,
         alpha=7.5,
         training_time_limit=TRAINING_TIME_LIMIT,
-        early_stop_epochs=10,
+        early_stop_epochs=5,
     ):
     sasrec_arc = SASRecDreji(
-        #output_layer_activation='tanh', # Make the model's output in [-1,1]
-        output_layer_activation='softmax', # Make the model's output in [0,1]
         max_history_len=HISTORY_LEN, 
         dropout_rate=0.2,
         num_heads=1,
         num_blocks=2,
-        vanilla=False,
+        vanilla=True,
         sampled_target=False,
-        negative_sampling=True,
+        negative_sampling=False,
         embedding_size=50,
     )
     
@@ -91,7 +89,7 @@ def dreji_sasrec_two_steps_training(
         "use_indexed_y": True,
         "freeze_item_embeddings": True,
     })
-    
+
     return dnn(
         sasrec_arc,
         BCELoss(),
@@ -101,9 +99,10 @@ def dreji_sasrec_two_steps_training(
         metric=BCELoss(),
         training_time_limit=training_time_limit,
         early_stop_epochs=early_stop_epochs,
-        second_step_loss=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
-        second_step_metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha),
+        second_step_loss=BCELossDreji(model_arc=sasrec_arc, alpha=alpha, use_rmse=True),
+        second_step_metric=BCELossDreji(model_arc=sasrec_arc, alpha=alpha, use_rmse=True),
         second_step_targets_builder=lambda: NegativeSamplingTargetBuilder(n_samples=n_samples),
+        second_step_optimizer=Adam(beta_2=0.98, learning_rate=0.00001),
         first_step_config = first_step_config,
         second_step_config = second_step_config,
     )

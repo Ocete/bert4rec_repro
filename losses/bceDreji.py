@@ -26,9 +26,9 @@ class BCELossDreji(Loss):
         self.model = None
 
         # alpha is the loss coefficient that ponders the expected similarity.
-        if 'alpha' not in kwargs:
-            kwargs['alpha'] = 1
-        self.alpha = kwargs['alpha']
+        self.alpha = kwargs['alpha'] if 'alpha' in kwargs else 1
+
+        self.use_rmse = kwargs['use_rmse'] if 'use_rmse' in kwargs else False
 
     def __call__(self, y_true_raw_indexed, y_pred_indexed):
         '''
@@ -43,26 +43,31 @@ class BCELossDreji(Loss):
         # as seen by the model (it has associated item id `i` as seen by the model).
         item_indexes, y_true_raw = self.slice_input(y_true_raw_indexed)
         _, y_pred = self.slice_input(y_pred_indexed)
-
-        similarities = self.compute_similarities(item_indexes, y_true_raw)
         
-        tf.print('y_pred min max: ', tf.math.reduce_min(y_pred), tf.math.reduce_max(y_pred))
-        tf.print('similarities min max: ', tf.math.reduce_min(similarities), tf.math.reduce_max(similarities))
         
         # y_true contains 1 if the position is the objective item and 0 if it isn't. It contains -1
         # if the data is invalid. is_target is a boolean mask, 1 only where y_true is either 0 or 1.
         y_true = tf.cast(y_true_raw, 'float32')
         is_target = tf.cast((y_true >= -self.eps), 'float32')
-        pos = -tf.math.log(tf.sigmoid(y_pred * similarities) + self.eps) * is_target
-
         num_targets = tf.reduce_sum(is_target)
-        ce_sum = tf.reduce_sum(pos)
+
+        if self.use_rmse:
+            similarities = self.compute_similarities(item_indexes, y_true_raw, in_0_1=True)
+            loss_value = tf.math.squared_difference(tf.sigmoid(y_pred), similarities) * is_target
+        else:
+            similarities = self.compute_similarities(item_indexes, y_true_raw, in_0_1=False)
+            loss_value = -tf.math.log(tf.sigmoid(y_pred * similarities) + self.eps) * is_target
+
+        ce_sum = tf.reduce_sum(loss_value)
         res_sum = tf.math.divide_no_nan(ce_sum, num_targets)
 
         # similarity_sum = tf.math.reduce_sum(similarities * is_target)
         # similarity_mean = tf.math.divide_no_nan(similarity_sum, num_targets)
 
-        return res_sum + self.alpha # * similarity_mean
+        tf.print('y_pred min max: ', tf.math.reduce_min(y_pred), tf.math.reduce_max(y_pred))
+        tf.print('similarities min max: ', tf.math.reduce_min(similarities), tf.math.reduce_max(similarities))
+        
+        return res_sum # + self.alpha * similarity_mean
     
 
     def slice_input(self, tensor):
@@ -80,12 +85,13 @@ class BCELossDreji(Loss):
     
 
 
-    def compute_similarities(self, item_indexes, y_true_raw):
+    def compute_similarities(self, item_indexes, y_true_raw, in_0_1=False):
         """
             item_indexes: A tensor of shape
                 (batch_size, guesses per batch, elements per guess) = (B, GB, I).
             y_true: A tensor of shape (B, GB, I). Contains 1 for the target item, 0 for non-target
                 item and -1 for invalid data.
+            in_0_1: Whether the output should be in [0,1] (True value) or in [-1,1] (False value).
 
             Returns:
                 A tensor of shape (B, GB, I) contanining in each position the similarity between
@@ -122,7 +128,8 @@ class BCELossDreji(Loss):
         similarities = tf.einsum("...ij,...kj->...k", objectives_embeddings, comparative_embeddings)
         
         # Normalize similarities from [-1, 1] to [0, 1].
-        similarities = (similarities + 1) / 2
+        if in_0_1:
+            similarities = (similarities + 1) / 2
         
         # Normalize similarities so they are a probability distribution, needed for the BCE.
         similarities, _ = tf.linalg.normalize(similarities, ord=1, axis=0)

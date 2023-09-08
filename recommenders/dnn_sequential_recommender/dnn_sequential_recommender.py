@@ -49,6 +49,7 @@ class DNNSequentialRecommender(Recommender):
             second_step_loss: Loss = BCELoss(),
             second_step_metric = KerasNDCG(40),
             second_step_targets_builder=FullMatrixTargetsBuilder,
+            second_step_optimizer=Adam(),
             first_step_config=None,
             second_step_config=None,
         ):
@@ -90,6 +91,7 @@ class DNNSequentialRecommender(Recommender):
         self.second_step_loss = second_step_loss
         self.second_step_metric = second_step_metric
         self.second_step_targets_builder = second_step_targets_builder
+        self.second_step_optimizer = second_step_optimizer
         self.first_step_config = first_step_config
         self.second_step_config = second_step_config
 
@@ -155,6 +157,7 @@ class DNNSequentialRecommender(Recommender):
             loss=self.loss,
             metric=self.metric,
             targets_builder=self.targets_builder,
+            optimizer=self.optimizer,
             model_config=self.first_step_config
         )
         
@@ -170,6 +173,7 @@ class DNNSequentialRecommender(Recommender):
                 loss=self.second_step_loss,
                 metric=self.second_step_metric,
                 targets_builder=self.second_step_targets_builder,
+                optimizer=self.second_step_optimizer,
                 model_config=self.second_step_config
             )
         
@@ -178,7 +182,7 @@ class DNNSequentialRecommender(Recommender):
             self,
             train_users, train_user_ids, train_features,
             val_users, val_user_ids, val_features,
-            loss, metric, targets_builder, model_config=None
+            loss, metric, targets_builder, optimizer, model_config=None
         ):
         self.pass_parameters(loss)
         val_generator = DataGenerator(
@@ -209,7 +213,7 @@ class DNNSequentialRecommender(Recommender):
         start_time = time.time() - self.total_training_time
 
         if not self.debug:
-            self.model.compile(optimizer=self.optimizer, loss=loss, metrics=[metric])
+            self.model.compile(optimizer=optimizer, loss=loss, metrics=[metric])
 
         for epoch in range(self.train_epochs):
             val_generator.reset()

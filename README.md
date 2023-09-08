@@ -93,3 +93,17 @@ If the preivous command doesn't work for running tests (due to Windows incompati
 ```
 pytest --verbose -n auto . 
 ```
+
+### 10. Using the code to launch experiments
+
+In order to launch experiments we will use the script `evaluation/run_n_experiments.sh`, which needs some further tweaking before working:
+
+- It must be updated with your location of the conda enviroment `python.exe` file (when using the command `python` in a script on Windows, the conda python wouldn't be used for some reason). Just manually add the path around line 40.
+- Make sure to save this single file with LF instead of CRLF. This can easily be done in VSCode.
+- Install the necessary tools to be able to run the `bash` command from the powershell.
+
+To launch experiments, go to the evaluation folder and use:
+
+```
+bash run_n_experiments.sh configs/<my config>
+```
